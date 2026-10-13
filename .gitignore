@@ -38,3 +38,6 @@ $RECYCLE.BIN/
 *.tmp
 *.temp
 ~$*
+
+# 本地工作数据（工作日志等，不上传）
+.workbuddy/
