@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data:; media-src 'self' data: file:; style-src 'self' 'unsafe-inline'" />
+  <title>心动纪念册</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 两个图层：下面=爱心外面（模糊+透明），上面=爱心里面（清晰） -->
+  <div id="stage">
+    <canvas id="mosaicBlur" class="mosaic"></canvas>
+    <canvas id="mosaicSharp" class="mosaic"></canvas>
+    <svg id="outline" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="heartStroke" x1="0" y1="0" x2="0.6" y2="1">
+          <stop offset="0%" stop-color="#ffa8c9" />
+          <stop offset="55%" stop-color="#ff6397" />
+          <stop offset="100%" stop-color="#d93a72" />
+        </linearGradient>
+      </defs>
+      <path id="outlinePath" fill="none" stroke="url(#heartStroke)" stroke-linejoin="round" />
+    </svg>
+  </div>
+
+  <header class="topbar">
+    <h1 class="title">心动纪念册</h1>
+    <button id="settingsBtn" class="gearbtn" title="设置">⚙</button>
+  </header>
+
+  <!-- 裁剪路径：爱心里面那一层用它裁出来（相对整窗口，自动跟随窗口大小） -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <clipPath id="heartClip" clipPathUnits="objectBoundingBox">
+        <path id="heartClipPath" d="" />
+      </clipPath>
+    </defs>
+  </svg>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- 设置 -->
+  <div id="settingsOverlay" class="overlay hidden">
+    <div class="modal settings">
+      <button class="closeBtn" data-close-settings>×</button>
+      <h2>设置</h2>
+
+      <div class="srow">
+        <label for="setBlockScale">长方形大小</label>
+        <input type="range" id="setBlockScale" min="1" max="2.6" step="0.05" />
+        <span class="sval" id="setBlockScaleVal">1.00×</span>
+      </div>
+
+      <div class="srow">
+        <label for="setBlur">外部模糊</label>
+        <input type="range" id="setBlur" min="0" max="20" step="1" />
+        <span class="sval" id="setBlurVal">7px</span>
+      </div>
+
+      <div class="srow">
+        <label for="setAlpha">外部透明度</label>
+        <input type="range" id="setAlpha" min="0.1" max="1" step="0.05" />
+        <span class="sval" id="setAlphaVal">50%</span>
+      </div>
+
+      <div class="srow">
+        <label for="setStroke">爱心线条</label>
+        <input type="range" id="setStroke" min="0" max="9" step="0.5" />
+        <span class="sval" id="setStrokeVal">3.5</span>
+      </div>
+
+      <div class="srow">
+        <label>背景音乐</label>
+        <button id="musicBtn" class="pbtn small">🎵 播放中</button>
+        <input type="range" id="musicVol" min="0" max="1" step="0.05" />
+        <span class="sval" id="musicVolVal">35%</span>
+      </div>
+
+      <div class="srow">
+        <label>音乐来源</label>
+        <button id="importMusicBtn" class="pbtn small">＋ 导入音乐</button>
+        <button id="openMusicBtn" class="pbtn small">打开文件夹</button>
+      </div>
+
+      <div class="srow">
+        <label>当前播放</label>
+        <span class="spath" id="musicPath"></span>
+      </div>
+
+      <div class="srow">
+        <label>图片库</label>
+        <button id="importPicsBtn" class="pbtn small">＋ 导入图片</button>
+        <button id="openPicsBtn" class="pbtn small">打开 pictures 文件夹</button>
+        <span class="spath" id="picsPath"></span>
+      </div>
+
+      <div class="srow">
+        <label>数据文件夹</label>
+        <button id="openDataBtn" class="pbtn small">打开文件夹</button>
+      </div>
+
+      <p class="note" id="phraseNote"></p>
+    </div>
+  </div>
+
+  <!-- 看照片 / 添加照片 -->
+  <div id="overlay" class="overlay hidden">
+    <div class="modal">
+      <section id="editorView" class="view hidden">
+        <button class="closeBtn" data-close>×</button>
+        <h2 id="editorTitle">这个方格里还没有照片哦</h2>
+
+        <div class="pickRow">
+          <div id="editorThumb" class="thumb empty">还没有选择照片</div>
+          <div class="pickBtns">
+            <button id="pickBtn" class="pbtn">📷 从电脑选择</button>
+            <button id="libToggleBtn" class="pbtn">🖼 从图片库选择</button>
+            <button id="clearPhotoBtn" class="pbtn small hidden">移除照片</button>
+          </div>
+        </div>
+
+        <!-- 图片库（pictures 文件夹） -->
+        <div id="libraryPanel" class="library hidden">
+          <div class="libbar">
+            <button id="libAddBtn" class="pbtn small">＋ 导入图片</button>
+            <button id="libOpenBtn" class="pbtn small">打开 pictures 文件夹</button>
+            <span id="libCount" class="libcount"></span>
+          </div>
+          <div id="libGrid" class="libgrid"></div>
+          <p id="libEmpty" class="libempty hidden">
+            图片库还是空的～点「导入图片」选几张，或者把图片直接丢进 <b id="libPath">pictures</b> 文件夹
+          </p>
+        </div>
+
+        <label class="lbl" for="editorDesc">写点想说的话</label>
+        <textarea id="editorDesc" rows="4"
+          placeholder="例如：2024.5.20 第一次一起去看海，风很大，你笑得很好看。"></textarea>
+
+        <div class="actions">
+          <button id="saveBtn" class="pbtn primary">保存</button>
+          <button class="pbtn" data-close>取消</button>
+        </div>
+      </section>
+
+      <section id="viewerView" class="view hidden">
+        <button class="closeBtn" data-close>×</button>
+        <div class="photoBox">
+          <img id="viewerImg" alt="我们的照片" />
+        </div>
+        <p id="viewerDesc" class="desc"></p>
+        <div class="actions">
+          <button id="replayBtn" class="pbtn">↻ 重新播放</button>
+          <button id="editBtn" class="pbtn primary">编辑</button>
+          <button id="delBtn" class="pbtn danger">删除照片</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="music.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

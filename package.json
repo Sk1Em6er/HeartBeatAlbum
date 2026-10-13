@@ -1,0 +1,17 @@
+{
+  "name": "heartbeat-album",
+  "version": "0.1.0",
+  "description": "心动纪念册 - 用爱心方格记录我们的照片",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "selftest": "electron . --selftest",
+    "shot": "electron . --shot",
+    "icon": "python tools/gen_icon.py"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^44.0.0"
+  }
+}
